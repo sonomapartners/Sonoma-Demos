@@ -1,0 +1,110 @@
+<apex:page >
+    <!-- These are just helper libraries and are NOT required for remote objects. Feel free to replace as needed -->
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/knockout/3.1.0/knockout-min.js" />
+    <script type="text/javascript" src="//code.jquery.com/jquery-2.1.1.min.js" />
+    
+    <!-- Define which objects we want access to -->
+    <!-- The default namespace is SObjectModel, but we're renaming it to JSObjects -->
+    <apex:remoteObjects jsNamespace="JSObjects">
+        <!-- This tag gives us access to the Account object and its Id and Name fields -->
+        <apex:remoteObjectModel name="Account" fields="Id, Name" />
+    </apex:remoteObjects>
+    
+    <!-- setup and logic script -->
+    <script type="text/javascript">
+        window.remoteObjectsSample = window.remoteObjectsSample || (function() {
+            <!-- reference to the Remote Objects proxy, which contains functions for interacting with the server -->
+            var accountProxy = new JSObjects.Account();
+        
+            <!-- root level ViewModel -->
+            function ViewModel() {
+                var self = this;
+                
+                self.accounts = ko.observableArray([]); // Account
+                
+                self.newName = ko.observable();
+                self.createNew = function() {
+                    // create a new Account
+                    var fields = { Name: self.newName() }; // the fields we want to create the record with
+                    accountProxy.create(fields, function(err, results) {
+                        if (err) {
+                            alert(err.Message);
+                        }
+                        else {
+                            // if the create was successful, results will be an array of ids
+                            self.accounts.push(new Account(results[0], fields.Name));
+                        }
+                        self.newName(null);
+                    });
+                };
+                self.delete = function(record) {
+                    // delete the record by id
+                    accountProxy.del(record.Id(), function(err, ids) {
+                        if(err) {
+                            alert(err.Message);
+                        }
+                        else {
+                            self.accounts.remove(record);
+                        }
+                    });
+                };
+            }
+        
+            <!-- Knockout model for Account -->
+            function Account(Id, Name) {
+                var self = this;
+                
+                self.Id = ko.observable(Id);
+                self.Name = ko.observable(Name);
+            }
+        
+            return {
+                executeOnLoad: function() {
+                    var vm = new ViewModel();
+                    ko.applyBindings(vm);
+                
+                    // load first 100 accounts (to get more than 100 results, use offset)
+                    accountProxy.retrieve({
+                        where: {
+                            Name: { ne: null }
+                        }
+                    }, function(error, results) {
+                        // add each account to the ViewModel
+                        results.forEach(function(result) {
+                            vm.accounts.push(new Account(
+                                result.get('Id'),
+                                result.get('Name')
+                            ));
+                        });
+                    });
+                }
+            };
+        }());
+        
+        $j = jQuery.noConflict();
+        $j(document).ready(window.remoteObjectsSample.executeOnLoad);
+    </script>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody data-bind="foreach: accounts">
+            <tr>
+                <td data-bind="text: Id"></td>
+                <td data-bind="text: Name"></td>
+                <td><a href="#" data-bind="click: $parent.delete">Delete</a></td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <form>
+        <label for="name">Name</label>
+        <input type="text" id="name" data-bind="value: newName" />
+        <button data-bind="click: createNew">Create</button>
+    </form>
+</apex:page>

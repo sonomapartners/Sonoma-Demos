@@ -181,3 +181,8 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+
+#Force.com IDE
+.settings/
+salesforce.schema
+Referenced Packages/
